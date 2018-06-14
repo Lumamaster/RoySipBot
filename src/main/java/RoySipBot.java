@@ -42,9 +42,6 @@ public class RoySipBot extends BaseBot implements IListener<MessageEvent> {
                         m[i] = m[i].substring(1, m[i].length() - 1);
                     }
                 }
-                for (i = 0; i < m.length; i++) {
-                    System.out.println(m[i]);
-                }
                 if (!m[0].isEmpty()) {
                     if (m[0].equals("createchar"))// name
                     {
@@ -155,13 +152,66 @@ public class RoySipBot extends BaseBot implements IListener<MessageEvent> {
                         }
                     }
                     if (m[0].equals("roll")) {
-                        if (m.length != 2) {
-                            printmessage("Usage: &roll (optional: dice amount)d(num of die faces)  (ex: &roll 8d100)", channel);
-                        } else {
+                        if (m.length >= 2) {
+                            boolean description = false;
+                            String desc = "";
+                            int descstart = 0;
+                            boolean modifier = false;
+                            String mod = "";
+                            int modval = 0;
+                            String rollval = "";
+                            int modnum = 0;
+                            int b;
+                            for (b = 0; b < withoutstart.length(); b++) {
+                                if (withoutstart.charAt(b) == '#') {
+                                    description = true;
+                                    desc = withoutstart.substring(b + 1);
+                                    descstart = b;
+                                    break;
+                                }
+                            }
+                            String rollexpression = "";
+                            if (description) {
+                                rollexpression = withoutstart.substring(5, descstart);
+                            } else {
+                                rollexpression = withoutstart.substring(5);
+                            }
+                            String withoutspace = rollexpression.replaceAll("\\s+","");
+                            for (b = 0; b < withoutspace.length(); b++) {
+                                if (withoutspace.charAt(b) == '+' || withoutspace.charAt(b) == '-' || withoutspace.charAt(b) == '*' || withoutspace.charAt(b) == '/') {
+                                    modifier = true;
+                                    mod = withoutspace.substring(b+1);
+                                    if (mod.matches("[0-9]+")) {
+                                        modval = Integer.parseInt(mod);
+                                    } else {
+                                        printmessage("Invalid modifier.", channel);
+                                        return;
+                                    }
+                                    rollval = withoutspace.substring(0, b);
+                                    switch (withoutspace.charAt(b)) {
+                                        case '+':
+                                            modnum = 1;
+                                            break;
+                                        case '-':
+                                            modnum = 2;
+                                            break;
+                                        case '*':
+                                            modnum = 3;
+                                            break;
+                                        case '/':
+                                            modnum = 4;
+                                            break;
+                                    }
+                                    break;
+                                }
+                            }
+                            if (modifier == false) {
+                                rollval = withoutspace;
+                            }
                             int amount = 1;
                             int num = 1;
-                            if (java.lang.Character.isDigit(m[1].charAt(0))) {
-                                String[] dice = m[1].split("d",2);
+                            if (java.lang.Character.isDigit(rollval.charAt(0))) {
+                                String[] dice = rollval.split("d",2);
                                 if (dice[0].matches("[0-9]+")) {
                                     amount = Integer.parseInt(dice[0]);
                                 } else {
@@ -175,7 +225,11 @@ public class RoySipBot extends BaseBot implements IListener<MessageEvent> {
                                     return;
                                 }
                                 int a;
-                                String mess = author.mention() + ": `" + m[1] + "`" + " = (";
+                                String mess = author.mention() + ": `" + rollexpression + "`";
+                                if (description) {
+                                    mess += " " + desc;
+                                }
+                                mess += " = (";
                                 int total = 0;
                                 int temp;
                                 for (a = 0; a < amount; a++) {
@@ -186,14 +240,88 @@ public class RoySipBot extends BaseBot implements IListener<MessageEvent> {
                                         mess += "+";
                                     }
                                 }
-                                mess += ") = ";
-                                mess += total;
+                                mess += ")";
+                                if (modifier) {
+                                    switch (modnum) {
+                                        case 1:
+                                            mess += "+" + modval;
+                                            break;
+                                        case 2:
+                                            mess += "-" + modval;
+                                            break;
+                                        case 3:
+                                            mess += "*" + modval;
+                                            break;
+                                        case 4:
+                                            mess += "/" + modval;
+                                            break;
+                                    }
+                                }
+                                mess += " = ";
+                                if (modifier) {
+                                    switch (modnum) {
+                                        case 1:
+                                            mess += total + modval;
+                                            break;
+                                        case 2:
+                                            mess += total - modval;
+                                            break;
+                                        case 3:
+                                            mess += total * modval;
+                                            break;
+                                        case 4:
+                                            mess += (int)(total / modval);
+                                            break;
+                                    }
+                                } else {
+                                    mess += total;
+                                }
                                 printmessage(mess, channel);
-                            } else if (m[1].charAt(0) == 'd') {
-                                if (m[1].substring(1).matches("[0-9]+")) {
-                                    int asdf = Integer.parseInt(m[1].substring(1));
+                            } else if (rollval.charAt(0) == 'd') {
+                                if (rollval.substring(1).matches("[\\d+\\-*/.]+")) {
+                                    int asdf = Integer.parseInt(rollval.substring(1));
                                     int res = rng.roll(asdf);
-                                    String mess = author.mention() + ": `" + m[1] + "`" + " = (" + res + ") = " + res;
+                                    String mess = author.mention() + ": `" + rollexpression + "`";
+                                    if (description) {
+                                        mess += " " + desc;
+                                    }
+                                    mess += " = (";
+                                    mess += res + ")";
+                                    if (modifier) {
+                                        switch (modnum) {
+                                            case 1:
+                                                mess += "+" + modval;
+                                                break;
+                                            case 2:
+                                                mess += "-" + modval;
+                                                break;
+                                            case 3:
+                                                mess += "*" + modval;
+                                                break;
+                                            case 4:
+                                                mess += "/" + modval;
+                                                break;
+                                        }
+                                    }
+                                    mess += " = ";
+                                    if (modifier) {
+                                        switch (modnum) {
+                                            case 1:
+                                                mess += res + modval;
+                                                break;
+                                            case 2:
+                                                mess += res - modval;
+                                                break;
+                                            case 3:
+                                                mess += res * modval;
+                                                break;
+                                            case 4:
+                                                mess += (int) (res / modval);
+                                                break;
+                                        }
+                                    } else {
+                                        mess += res;
+                                    }
                                     printmessage(mess, channel);
                                 } else {
                                     printmessage("Invalid dice face count inputted. Ensure it is a number.", channel);
